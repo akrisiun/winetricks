@@ -18,7 +18,6 @@ addons:
     packages:
     # for checkbashisms
     - devscripts
-    - wine
 
 # Note: if statements cannot go across multiple lines. Combine into one, or move to a shell script!
 
@@ -26,7 +25,7 @@ addons:
 before_install:
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then echo "deb http://archive.ubuntu.com/ubuntu/ xenial universe" | sudo tee -a /etc/apt/sources.list ; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then time sudo apt-get -q update ; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then time sudo apt-get install shellcheck ; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then time sudo apt-get install shellcheck wine ; fi
 
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then time brew update ; fi
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then time brew install checkbashisms shellcheck ; fi
