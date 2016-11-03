@@ -30,4 +30,6 @@ before_install:
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then time brew update ; fi
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then time brew install checkbashisms shellcheck ; fi
 
-script: time sh ./tests/shell-checks
+#script: time sh ./tests/shell-checks
+
+script: time sh ./src/winetricks -q -v dotnet40
