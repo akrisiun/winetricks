@@ -30,10 +30,10 @@ before_install:
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then echo 'install dependencies' ; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then time sudo apt-get install shellcheck wine-devel ; fi
 
-
+# Would like --devel wine, but that compiles from source, which takes longer than Travis CI runs for
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then time brew update ; fi
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then time brew install checkbashisms shellcheck ; fi
-    - if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then time brew install --devel wine ; fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then time brew install wine ; fi
 
 #script: time sh ./tests/shell-checks
 
