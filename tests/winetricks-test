@@ -474,6 +474,9 @@ test_dlls()
     if [ "$(wc -l dll.verbs)" -eq 0 ] ; then
         echo "No verbs left after blacklisting? Nothing to test. Check your blacklists."
         exit 1
+    else
+        echo "Testing these verbs:"
+        cat dll.verbs
     fi
 
     while IFS= read -r line; do
