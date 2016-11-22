@@ -42,4 +42,4 @@ before_install:
 
 #script: time sh ./tests/shell-checks
 
-script: time sh ./src/winetricks -q -v dotnet40
+script: time sh ./src/winetricks -q -v mt4
