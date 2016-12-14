@@ -1,16 +1,26 @@
 #!/bin/sh
-# Regression test for winetricks
+# Regression tests for winetricks
+# License: LGPL-2+
+# Copyright:
+# Austin English 2014-2016
+# Dan Kegel 2011-2014
+
+set -x
 
 # TODO:
 # add selfupdate tests
 # automate non -q verbs with autohotkey
 
+########################
+# Variables:
+
+passes=0
+errors=0
+
 # Override this if you want to put the work area on a different disk
 WINE_PREFIXES=${WINE_PREFIXES:-$HOME/winetrickstest-prefixes}
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 cache="$XDG_CACHE_HOME/winetricks"
-
-set -x
 
 # Disable winetricks update checks:
 WINETRICKS_LATEST_VERSION_CHECK=disabled
@@ -19,6 +29,9 @@ export WINETRICKS_LATEST_VERSION_CHECK
 # Disable some verbose output that makes parsing harder:
 WINETRICKS_SUPER_QUIET=1
 export WINETRICKS_SUPER_QUIET
+
+# Verbs known to update frequently
+QUICKCHECK="flash steam"
 
 # verbs known to not work in -q mode yet
 BLACKLIST="kde|mingw|psdk2003|psdkwin7"
@@ -57,22 +70,22 @@ ARCHIVE_ORG_BLACKLIST="atmlib|avifil32|cabinet|cmd|comctl32ocx|comdgl32ocx|gmdls
 ARCHIVE_ORG_BLACKLIST="$ARCHIVE_ORG_BLACKLIST|msls31ms|msmask|msscript|msxml3|pdh|pngfilt|riched30"
 ARCHIVE_ORG_BLACKLIST="$ARCHIVE_ORG_BLACKLIST|richtx32|secur32|tabctl32|usp10|"
 
-# See https://docs.travis-ci.com/user/environment-variables/#Default-Environment-Variables
-if [ "$TRAVIS" = "true" ] ; then
-    BLACKLIST="$ARCHIVE_ORG_BLACKLIST|$BLACKLIST"
-fi
-
 # Tests that fail under Xvfb
 XVFB_DOTNET_BLACKLIST="dotnet11|dotnet11sp1|dotnet20|dotnet20sdk|dotnet20sp1|dotnet30|dotnet40|dotnet46"
 XVFB_BLACKLIST="$XVFB_DOTNET_BLACKLIST|adobeair|binkw32|dirac|directmusic|dxdiag|flash|gdiplus_winxp|gfw|ie6|ie7|ie8"
 XVFB_BLACKLIST="$XVFB_BLACKLIST|jet40|nuget|quicktime72|vcrun2008|vcrun2010|vcrun2012|vcrun2013|vcrun2015"
 XVFB_BLACKLIST="$XVFB_BLACKLIST|vjrun20|windowscodecs|wmi|wmp9|wmp10|wsh56js|wsh56vb|xmllite|xna31|xna40|xvid"
 
-# Verbs known to update frequently
-QUICKCHECK="flash steam"
+# See https://docs.travis-ci.com/user/environment-variables/#Default-Environment-Variables
+if [ "$TRAVIS" = "true" ] ; then
+    BLACKLIST="$ARCHIVE_ORG_BLACKLIST|$BLACKLIST|$XVFB_BLACKLIST"
+fi
 
-passes=0
-errors=0
+# Top directory of the source code
+srcdir=$(cd "$(dirname "$0")" || w_die "Could not cd to $(dirname "$0")" ; pwd)
+
+########################
+# Helper functions:
 
 # Check for programs this script (or winetricks) uses.
 # Better to find out they're missing now than in the
@@ -91,18 +104,22 @@ check_deps() {
      done
 }
 
+# Echo an error and count it for printing a total at the end
 fail()
 {
     echo "FAIL: $*"
     errors=$((errors + 1))
+    # FIXME: we should append the failures to some global global and print it at the end
 }
 
+# Echo success and count it for printing a total at the end
 pass()
 {
     echo "PASS: $*"
     passes=$((passes + 1))
 }
 
+# Echo an error and exit with exitcode 1
 w_die()
 {
     echo "$*"
@@ -110,6 +127,7 @@ w_die()
     exit 1
 }
 
+# Wrapper around /usr/bin/time
 w_time()
 {
     # OSX time doesn't support -o, so try it first:
@@ -121,10 +139,12 @@ w_time()
     fi
 }
 
+# Checks for proper locale seting
 case "$LANG" in
     ""|"C") echo "Some games won\'t install in the Posix locale; doing \'export LANG=en_US.UTF-8\'" ; export LANG=en_US.UTF-8;;
 esac
 
+# Checks for Wine setup:
 case "$OS" in
  "Windows_NT")
     # Mostly unimplemented...
@@ -177,64 +197,8 @@ case "$OS" in
     ;;
 esac
 
-srcdir=$(cd "$(dirname "$0")" || w_die "Could not cd to $(dirname "$0")" ; pwd)
-
-test_speed()
-{
-    # shellcheck disable=SC2086
-    if ! w_time $XVFB sh winetricks nocrashdialog "$1" > foo.log
-    then
-        fail "winetricks $1 returned status $?"
-    fi
-
-    # shellcheck disable=SC2046
-    if [ $(wc -l < foo.log) -lt 5 ] ; then
-        fail "winetricks $1 returned too few lines"
-    fi
-
-    if [ ! -f time.log ] ; then
-        # OSX, fake it:
-        seconds=0
-    else
-        seconds=$(awk '/real/ {print $2}' < time.log | sed 's/\..*//')
-    fi
-
-    echo "test_speed: winetricks $1 took $seconds seconds"
-    # Longest runtime as of 11 Dec 2010 is 5 seconds on an e8400 with cygwin
-    # shellcheck disable=SC2086
-    if [ $seconds -gt 7 ] ; then
-        fail "test_speed: winetricks $1 took $seconds seconds"
-    fi
-}
-
-test_app_checksums()
-{
-    # Verify the installation
-    if [ -f "$srcdir/winetricksverify.d/$app.sha1sum" ]
-    then
-        windir="$($WINE cmd /c echo "%windir%" | cut -c 4- | tr -d '\015')"
-        progdir="$($WINE cmd /c echo "%ProgramFiles%" | cut -c 4- | tr -d '\015')"
-
-        cd "$DRIVE_C" || w_die "Could not cd to $DRIVE_C"
-        # Fix up the filenames, which can differ between Windows versions/Wine:
-        # FIXME: we need a way to guarantee that all _original_ .sha1sums are the same.
-        # Preferably generated under 32-bit wine, so that we don't need a really complex sed
-        # substitution here...
-        sed -e "s!Program\ Files/!/$progdir/!" -e "s!/windows/!/$windir/!" < "$srcdir/winetricksverify.d/$app.sha1sum" > "$app.sha1sum.tmp"
-        if ! sha1sum -c "$app.sha1sum.tmp"
-        then
-            fail "test_app_checksum $app !"
-        fi
-        rm "$app.sha1sum.tmp"
-        cd "$srcdir" || w_die "Could not cd into $srcdir"
-    fi
-}
-
-# Return the number of blocks available in the system
-total_df()
-{
-    df | grep -v /dev/loop | awk '/^\// { sum += $4 } END { print sum }'
-}
+########################
+# Test functions:
 
 # for single apps, wrapper around test_command:
 test_app()
@@ -280,6 +244,32 @@ test_app()
     echo "${app}:size_MB=${TOTAL_MB},time_sec=${seconds}" >> "measurements/$app.dat"
 }
 
+# Verify checksum of applications if there is a corrresponding sha1sum in
+# $srcdir/winetricksverify.d/$app.sha1sum
+test_app_checksums()
+{
+    # Verify the installation
+    if [ -f "$srcdir/winetricksverify.d/$app.sha1sum" ] ; then
+        windir="$($WINE cmd /c echo "%windir%" | cut -c 4- | tr -d '\015')"
+        progdir="$($WINE cmd /c echo "%ProgramFiles%" | cut -c 4- | tr -d '\015')"
+
+        cd "$DRIVE_C" || w_die "Could not cd to $DRIVE_C"
+        # Fix up the filenames, which can differ between Windows versions/Wine:
+        # FIXME: we need a way to guarantee that all _original_ .sha1sums are the same.
+        # Preferably generated under 32-bit wine, so that we don't need a really complex sed
+        # substitution here...
+        sed -e "s!Program\ Files/!/$progdir/!" -e "s!/windows/!/$windir/!" < "$srcdir/winetricksverify.d/$app.sha1sum" > "$app.sha1sum.tmp"
+
+        if ! sha1sum -c "$app.sha1sum.tmp" ; then
+            fail "test_app_checksum $app !"
+        fi
+
+        rm "$app.sha1sum.tmp"
+        cd "$srcdir" || w_die "Could not cd into $srcdir"
+    fi
+}
+
+# Test a winetricks command (e.g., gdiplus, -v, vd=1024x768, etc.)
 test_command()
 {
     command="$*"
@@ -344,14 +334,14 @@ test_command()
     pass "$@"
 }
 
+# Custom .verb support isn't commonly used, and may break without notice for a while
+# Also try with --isolate:
+# https://github.com/Winetricks/winetricks/issues/599
 test_custom_verbs()
 {
-    # Custom .verb support isn't commonly used, and may break without notice for a while
-    # Also try with --isolate:
-    # https://github.com/Winetricks/winetricks/issues/599
-
     # Test as apps first, then dll, since they take different codepaths
 
+    # FIXME: can this be indeneted?
     # First, a working 'app' as an app:
 cat > true.verb <<_EOF
 w_metadata true apps
@@ -464,6 +454,13 @@ _EOF
     pass
 }
 
+# Return the number of blocks available in the system
+total_df()
+{
+    df | grep -v /dev/loop | awk '/^\// { sum += $4 } END { print sum }'
+}
+
+# Test all verbs in the dlls category that aren't blacklisted
 test_dlls()
 {
     # no xvfb needed
@@ -489,6 +486,7 @@ test_dlls()
     done < dlls.verbs
 }
 
+# Run more specific dotnet* tests
 test_dotnet()
 {
     # verify that each individual installer works:
@@ -518,22 +516,20 @@ test_dotnet()
     done
 }
 
-test_manual_dlls()
-{
-    # no xvfb needed
-    sh winetricks list-manual-download > manual.log
-    sh winetricks dlls list | awk '{print $1}' > dlls.log
-    if grep .------------------- dlls.log ; then
-        fail "output of dlls list contained garbage"
-        exit 1
-    fi
-    cat dlls.log manual.log | sort | uniq -c | awk '$1 == 2 {print $2}' | egrep -v "$BLACKLIST" > dlls.verbs
-
-    while IFS= read -r line; do
-        test_app "$line"
-    done < dlls.verbs
+# Run all the tests
+# FIXME: why is test_install_cached_or_download disabled?
+test_full() {
+    test_quick
+    test_dotnet
+    test_speed list
+    test_speed list-download
+    #test_install_cached_or_download
+    test_speed list-cached
+    test_speed list-installed
+    test_custom_verbs
 }
 
+# Test everything that is either downloadable, OR the installer files are already cached 
 test_install_cached_or_download()
 {
     # no xvfb needed
@@ -584,6 +580,26 @@ test_install_cached_or_download()
     fi
 }
 
+# Test dlls that must be manually downloaded
+test_manual_dlls()
+{
+    # no xvfb needed
+    sh winetricks list-manual-download > manual.log
+    sh winetricks dlls list | awk '{print $1}' > dlls.log
+    if grep .------------------- dlls.log ; then
+        fail "output of dlls list contained garbage"
+        exit 1
+    fi
+    cat dlls.log manual.log | sort | uniq -c | awk '$1 == 2 {print $2}' | egrep -v "$BLACKLIST" > dlls.verbs
+
+    while IFS= read -r line; do
+        test_app "$line"
+    done < dlls.verbs
+}
+
+# Run the 'quick' test of tests (still takes FIXME time)
+# Checks the '$QUICKCHECK' verbs first (frequent breaking ones, e.g., flash)
+# Then proceeds to run the 'dlls' tests
 test_quick()
 {
     echo "warning: quick test takes up around 20GB"
@@ -600,17 +616,38 @@ test_quick()
     test_dlls
 }
 
-test_full() {
-    test_quick
-    test_dotnet
-    test_speed list
-    test_speed list-download
-    #test_install_cached_or_download
-    test_speed list-cached
-    test_speed list-installed
-    test_custom_verbs
+# Tests how long it takes to run $(winetricks nocrashdialog)
+test_speed()
+{
+    # shellcheck disable=SC2086
+    if ! w_time $XVFB sh winetricks nocrashdialog "$1" > foo.log
+    then
+        fail "winetricks $1 returned status $?"
+    fi
+
+    # shellcheck disable=SC2046
+    if [ $(wc -l < foo.log) -lt 5 ] ; then
+        fail "winetricks $1 returned too few lines"
+    fi
+
+    if [ ! -f time.log ] ; then
+        # OSX, fake it:
+        seconds=0
+    else
+        seconds=$(awk '/real/ {print $2}' < time.log | sed 's/\..*//')
+    fi
+
+    echo "test_speed: winetricks $1 took $seconds seconds"
+    # Longest runtime as of 11 Dec 2010 is 5 seconds on an e8400 with cygwin
+    # shellcheck disable=SC2086
+    if [ $seconds -gt 7 ] ; then
+        fail "test_speed: winetricks $1 took $seconds seconds"
+    fi
 }
 
+# Run the tests that work under XVFB
+# Intended for travis-ci.org testing, but the time limit is exceeded.
+# Still useful for testing without lots of annoying popus, with limited coverage
 test_xvfb() {
     if [ ! "$(which xvfb-run 2>/dev/null)" ] ; then
         w_die "Please install xvfb-run for xvfb tests"
@@ -634,6 +671,7 @@ case "$1" in
     *) echo "Usage: $0 quick\|full" ; exit 1 ;;
 esac
 
+# FIXME: print the failures out to make it easier to find them:
 echo "Test over, $errors failures, $passes successes."
 if [ $errors = 0 ] && [ $passes -gt 0 ] ; then
     echo PASS
