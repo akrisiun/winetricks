@@ -45,6 +45,7 @@ before_install:
 
 script: time sh ./tests/shell-checks
 
+# OS X doesn't allow writing to /usr/bin, skip regular make install test there
 install:
-    - sudo make install
-    - make install PREFIX="$(mktemp -d)"
+    - if [[ "$TRAVIS_OS_NAME" != "osx" ]] ; then time sudo make install ; fi
+    - time make install PREFIX="$(mktemp -d)"
