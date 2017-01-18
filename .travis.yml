@@ -44,3 +44,7 @@ before_install:
 # shell-checks is quick and works, no display or compiles needed
 
 script: time sh ./tests/shell-checks
+
+install:
+    - sudo make install
+    - make install PREFIX="$(mktemp -d)"
