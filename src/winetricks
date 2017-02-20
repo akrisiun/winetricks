@@ -834,9 +834,11 @@ w_download_to()
         _W_file=$(basename "$_W_url")
     fi
 
-    # fixme not ready yet
-    _W_sum_length="$(echo "$_W_sum" | tr -d "\n" | wc -c)"
+    # tr -d " " is for FreeBSD/OS X/Solaris return a leading space:
+    # See https://stackoverflow.com/questions/30927590/wc-on-osx-return-includes-spaces/30927885#30927885
+    _W_sum_length="$(echo "$_W_sum" | tr -d "\n" | wc -c | tr -d " ")"
     case "$_W_sum_length" in
+         0) _W_shatype="none" ;;
          40) _W_shatype="sha1" ;;
          64) _W_shatype="sha256" ;;
          # 128) sha512..
@@ -883,9 +885,10 @@ w_download_to()
                     fi
                 fi
                 # If checksum matches, declare success and exit loop
-
-                # FIXME: 256/1
                 case "$_W_shatype" in
+                    none)
+                        w_warn "No checksum provided, not verifying"
+                        ;;
                     sha1)
                         w_get_sha1sum "$_W_cache/$_W_file"
                         if [ "$_W_gotsha1sum"x = "$_W_sum"x ]
@@ -1028,14 +1031,11 @@ w_download_to()
         # Download from the Wayback Machine on second try
         _W_url="https://web.archive.org/web/$_W_url"
     done
-echo we be here
+
     if test "$_W_sum" && test ! "$checksum_ok"
     then
-        echo a
-        # fixme not ready yet
-        _W_sum_length="$(echo "$_W_sum" | tr -d "\n" | wc -c)"
-        echo  b
         case "$_W_shatype" in
+            none) w_warn "No checksum provided, not verifying" ;;
             sha1) w_verify_sha1sum "$_W_sum" "$_W_cache/$_W_file" ;;
             sha256) w_verify_sha256sum "$_W_sum" "$_W_cache/$_W_file" ;;
             # 128) sha512..
@@ -2784,11 +2784,16 @@ winetricks_dl_warning() {
 
 winetricks_get_sha1sum_prog() {
     # Mac folks tend to not have sha1sum, but we can make do with openssl
-    if [ -x "$(which sha1sum 2>/dev/null)" ]
-    then
+    if [ -x "$(which sha1sum 2>/dev/null)" ] ; then
         WINETRICKS_SHA1SUM="sha1sum"
-    elif [ -x "$(which openssl 2>/dev/null)" ]
-    then
+    # FreeBSD
+    elif [ -x "$(which sha1 2>/dev/null)" ] ; then
+        WINETRICKS_SHA1SUM="sha1"
+    # OSX
+    elif [ -x "$(which shasum 2>/dev/null)" ] ; then
+        WINETRICKS_SHA1SUM="shasum -a 1"
+    # Old OSX/BSD fallback:
+    elif [ -x "$(which openssl 2>/dev/null)" ] ; then
         WINETRICKS_SHA1SUM="openssl dgst -sha1"
     else
         w_die "No sha1sum utility available."
@@ -2796,13 +2801,15 @@ winetricks_get_sha1sum_prog() {
 }
 
 winetricks_get_sha256sum_prog() {
-    # Mac/FreeBSD folks tend to not have sha256um, but we can make do with openssl
-    if [ -x "$(which sha256sum 2>/dev/null)" ]
-    then
+    # GNU/Linux
+    if [ -x "$(which sha256sum 2>/dev/null)" ] ; then
         WINETRICKS_SHA256SUM="sha256sum"
-    elif [ -x "$(which sha256 2>/dev/null)" ]
-    then
+    # FreeBSD
+    elif [ -x "$(which sha256 2>/dev/null)" ] ; then
         WINETRICKS_SHA256SUM="sha256"
+    # OSX
+    elif [ -x "$(which shasum 2>/dev/null)" ] ; then
+        WINETRICKS_SHA256SUM="shasum -a 256"
     else
         w_die "No sha256um utility available."
     fi
