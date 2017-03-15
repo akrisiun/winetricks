@@ -5042,7 +5042,7 @@ w_metadata adobeair dlls \
 
 load_adobeair()
 {
-    # 2016-02-17: 20.0.0.260 (strings 'Adobe AIR.dll' | grep 20\\. ) sha1sum 2fdd561556fe881c4e5538d4ee37f523871befd3
+    # 2016-02-17: 20.0.0.260 (strings 'Adobe AIR.dll' | grep 20\\. ) sha1sum 318770b9a18e59ca4a721a1f5c2b0235cffdbe77a043e99cb2af32074d61de45
     # 2017-3-14: 20.0.0.260 (strings 'Adobe AIR.dll' | grep 20\\. ) sha256sum 318770b9a18e59ca4a721a1f5c2b0235cffdbe77a043e99cb2af32074d61de45
     w_download https://airdownload.adobe.com/air/win/download/20.0/AdobeAIRInstaller.exe 318770b9a18e59ca4a721a1f5c2b0235cffdbe77a043e99cb2af32074d61de45
     w_try_cd "$W_CACHE/$W_PACKAGE"
