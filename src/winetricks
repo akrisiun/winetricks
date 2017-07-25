@@ -4897,6 +4897,14 @@ winetricks_init()
             w_die "WINE is $WINE, which is neither on the path nor an executable file"
         fi
         unset _abswine
+
+        # Hack: try forcing everything to be single threaded, to avoid races:
+        if test -x /usr/bin/taskset ; then
+            WINE="taskset -c 0 $WINE"
+        else
+            w_die "Please install taskset"
+        fi
+
         ;;
     esac
     winetricks_set_wineprefix "$1"
