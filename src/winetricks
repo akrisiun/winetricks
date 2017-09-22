@@ -4603,6 +4603,14 @@ winetricks_set_wineprefix()
         W_SYSTEM64_DLLS_WIN32="C:\\windows\\sysnative" # path to access 64-bit dlls from 32-bit apps
         # shellcheck disable=SC2034
         W_SYSTEM64_DLLS_WIN64="C:\\windows\\system32"  # path to access 64-bit dlls from 64-bit apps
+
+        # Probably need fancier handling/checking, but for a basic start:
+        # WINE64 = wine64, available on 64-bit prefixes
+        # WINE_ARCH = the native wine for the prefix (wine for 32-bit, wine64 for 64-bit)
+        # WINE_MULTI = generic wine, new name
+        WINE64="${WINE}64"
+        WINE_ARCH="${WINE64}"
+        WINE_MULTI="${WINE}"
         # 64-bit prefixes still have plenty of issues:
         case $LANG in
             ru*) w_warn "Вы используете 64-битный WINEPREFIX. Важно: многие ветки устанавливают только 32-битные версии пакетов. Если у вас возникли проблемы, пожалуйста, проверьте еще раз на чистом 32-битном WINEPREFIX до отправки отчета об ошибке." ;;
@@ -4612,6 +4620,10 @@ winetricks_set_wineprefix()
         W_ARCH=win32
         W_SYSTEM32_DLLS="$W_WINDIR_UNIX/system32"
         W_SYSTEM32_DLLS_WIN="C:\\windows\\system32"
+
+        WINE64="/bin/false"
+        WINE_ARCH="${WINE}"
+        WINE_MULTI="${WINE}"
     fi
 }
 
@@ -4730,6 +4742,9 @@ winetricks_init()
     case "$W_PLATFORM" in
      windows_cmd)
         WINE=""
+        WINE64=""
+        WINE_ARCH=""
+        WINE_MULTI=""
         WINESERVER=""
         W_DRIVE_C="C:/"
         ;;
