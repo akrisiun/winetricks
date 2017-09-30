@@ -6,7 +6,7 @@
 
 # Name of this version of winetricks (YYYYMMDD)
 # (This doesn't change often, use the sha256sum of the file when reporting problems)
-WINETRICKS_VERSION=20170930-debug
+WINETRICKS_VERSION=20170823-next
 
 # This is a UTF-8 file
 # You should see an o with two dots over it here [ö]
@@ -424,8 +424,6 @@ w_try_msiexec64()
 
 w_try_regedit()
 {
-echo "DEBUG try regedit?"
-
     # on windows, doesn't work without cmd /c
     case "$W_PLATFORM" in
     windows_cmd|wine_cmd) cmdc="cmd /c";;
@@ -433,8 +431,7 @@ echo "DEBUG try regedit?"
     esac
 
     # shellcheck disable=SC2086
-    echo "ignore $cmdc" 
-    # w_try winetricks_early_wine $cmdc regedit $W_UNATTENDED_SLASH_S "$@"
+    w_try winetricks_early_wine $cmdc regedit $W_UNATTENDED_SLASH_S "$@"
 }
 
 w_try_regsvr()
@@ -2178,9 +2175,6 @@ Usage: 'w_override_app_dlls app mode dll ...'." ;;
 # Has to be set in a few places...
 w_set_winver()
 {
-
-echo "Debug: set winver..."
-
     w_skip_windows w_set_winver && return
     # FIXME: This should really be done with winecfg, but it has no CLI options.
 
@@ -2208,8 +2202,8 @@ REGEDIT4
 "Version"="win31"
 
 _EOF_
-        echo "Debug: ignored winver.reg"
-        # w_try_regedit "$W_TMP_WIN"\\set-winver.reg
+
+        w_try_regedit "$W_TMP_WIN"\\set-winver.reg
         return
         ;;
     win95)
@@ -2225,7 +2219,7 @@ REGEDIT4
 "VersionNumber"="4.0.950"
 
 _EOF_
-        # w_try_regedit "$W_TMP_WIN"\\set-winver.reg
+        w_try_regedit "$W_TMP_WIN"\\set-winver.reg
         return
         ;;
     win98)
@@ -2241,7 +2235,7 @@ REGEDIT4
 "VersionNumber"="4.10.2222"
 
 _EOF_
-        # w_try_regedit "$W_TMP_WIN"\\set-winver.reg
+        w_try_regedit "$W_TMP_WIN"\\set-winver.reg
         return
         ;;
     nt40)
@@ -2266,7 +2260,7 @@ REGEDIT4
 "CSDVersion"=dword:00000600
 
 _EOF_
-        # w_try_regedit "$W_TMP_WIN"\\set-winver.reg
+        w_try_regedit "$W_TMP_WIN"\\set-winver.reg
         return
         ;;
     win2k)
@@ -2356,8 +2350,7 @@ _EOF_
 
 w_unset_winver()
 {
-    # w_set_winver winxp
-    echo "ignore set winver winxp"
+    w_set_winver winxp
 }
 
 # Present app $1 with the Windows personality $2
@@ -4610,14 +4603,6 @@ winetricks_set_wineprefix()
         W_SYSTEM64_DLLS_WIN32="C:\\windows\\sysnative" # path to access 64-bit dlls from 32-bit apps
         # shellcheck disable=SC2034
         W_SYSTEM64_DLLS_WIN64="C:\\windows\\system32"  # path to access 64-bit dlls from 64-bit apps
-
-        # Probably need fancier handling/checking, but for a basic start:
-        # WINE64 = wine64, available on 64-bit prefixes
-        # WINE_ARCH = the native wine for the prefix (wine for 32-bit, wine64 for 64-bit)
-        # WINE_MULTI = generic wine, new name
-        WINE64="${WINE}64"
-        WINE_ARCH="${WINE64}"
-        WINE_MULTI="${WINE}"
         # 64-bit prefixes still have plenty of issues:
         case $LANG in
             ru*) w_warn "Вы используете 64-битный WINEPREFIX. Важно: многие ветки устанавливают только 32-битные версии пакетов. Если у вас возникли проблемы, пожалуйста, проверьте еще раз на чистом 32-битном WINEPREFIX до отправки отчета об ошибке." ;;
@@ -4627,10 +4612,6 @@ winetricks_set_wineprefix()
         W_ARCH=win32
         W_SYSTEM32_DLLS="$W_WINDIR_UNIX/system32"
         W_SYSTEM32_DLLS_WIN="C:\\windows\\system32"
-
-        WINE64="/bin/false"
-        WINE_ARCH="${WINE}"
-        WINE_MULTI="${WINE}"
     fi
 }
 
@@ -4749,9 +4730,6 @@ winetricks_init()
     case "$W_PLATFORM" in
      windows_cmd)
         WINE=""
-        WINE64=""
-        WINE_ARCH=""
-        WINE_MULTI=""
         WINESERVER=""
         W_DRIVE_C="C:/"
         ;;
@@ -4790,10 +4768,11 @@ winetricks_init()
                 break
             fi
         done
-
         case "$x" in
-            file-not-found) w_die "wineserver not found!" ;;
-            *) WINESERVER="$x" ;;
+        file-not-found)
+            w_die "wineserver not found!" ;;
+        *)
+            WINESERVER="$x" ;;
         esac
 
         if test "$WINEPREFIX"; then
@@ -4801,16 +4780,13 @@ winetricks_init()
         else
             WINETRICKS_ORIGINAL_WINEPREFIX="$HOME/.wine"
         fi
-
         _abswine="$(which "$WINE" 2>/dev/null)"
         if ! test -x "$_abswine" || ! test -f "$_abswine"; then
             w_die "WINE is $WINE, which is neither on the path nor an executable file"
         fi
-
         unset _abswine
         ;;
     esac
-
     winetricks_set_wineprefix "$1"
 
     # Whether to automate installs (0=no, 1=yes)
@@ -6393,12 +6369,11 @@ load_dotnet20()
 
     # Recipe from https://bugs.winehq.org/show_bug.cgi?id=10467#c57
     # and https://bugs.winehq.org/show_bug.cgi?id=30845#c10
-    # w_set_winver win2k
+    w_set_winver win2k
 
-echo "Debug: dotnet20 - cd $W_CACHE"/"$W_PACKAGE"
     w_try_cd "$W_CACHE"/"$W_PACKAGE"
     w_try "$WINE" dotnetfx.exe ${W_OPT_UNATTENDED:+/q /c:"install.exe /q"}
-    # w_unset_winver
+    w_unset_winver
 
     # We can't stop installing dotnet20 in win2k mode until Wine supports
     # reparse/junction points
@@ -6409,9 +6384,6 @@ echo "Debug: dotnet20 - cd $W_CACHE"/"$W_PACKAGE"
     rm -f "$W_SYSTEM32_DLLS"/msvc?80.dll
 
     W_NGEN_CMD="w_try $WINE $W_DRIVE_C/windows/Microsoft.NET/Framework/v2.0.50727/ngen.exe executequeueditems"
-
-echo "Debug: dotnet20 success finally :-)"    
-
 }
 
 verify_dotnet20()
@@ -6609,7 +6581,7 @@ load_dotnet20sp2()
     *) w_die "exit status $status - $W_PACKAGE installation failed" ;;
     esac
 
-    # w_unset_winver
+    w_unset_winver
 
     W_NGEN_CMD="w_try $WINE $W_DRIVE_C/windows/Microsoft.NET/Framework/v2.0.50727/ngen.exe executequeueditems"
 }
@@ -6670,7 +6642,7 @@ load_dotnet30()
         ln -sf "${W_SYSTEM32_DLLS}/spupdsvc.exe" "${LANGPACKS_BASE_PATH}/dotnetfx3langpack${lang}.exe"
     done
 
-    # w_set_winver winxp
+    w_set_winver winxp
 
     # Delete FontCache 3.0 service, it's in Wine for Mono, breaks native .NET
     # OK if this fails, that just means you have an older Wine.
@@ -6763,7 +6735,7 @@ load_dotnet35()
     # https://www.microsoft.com/en-us/download/details.aspx?id=21
     w_download https://download.microsoft.com/download/6/0/f/60fc5854-3cb8-4892-b6db-bd4f42510f28/dotnetfx35.exe 3e3a4104bad9a0c270ed5cbe8abb986de9afaf0281a98998bdbdc8eaab85c3b6
 
-    # w_call remove_mono
+    w_call remove_mono
 
     w_call dotnet30sp1
     $WINESERVER -w
@@ -6775,10 +6747,6 @@ load_dotnet35()
     # See also https://blogs.msdn.microsoft.com/astebner/2008/07/17/scenarios-where-net-framework-3-5-setup-tries-to-connect-to-the-internet-and-how-to-avoid-them/
     w_try_cd "$W_TMP"
     w_try_cabextract $W_UNATTENDED_DASH_Q "$W_CACHE"/dotnet35/dotnetfx35.exe
-    
-echo "Debug: Wine dotNetFx35"
-pwd 
-
     w_try_cd wcu/dotNetFramework
     "$WINE" dotNetFx35setup.exe /lang:ENU $W_UNATTENDED_SLASH_Q
 
@@ -6804,8 +6772,6 @@ w_metadata dotnet35sp1 dlls \
 
 load_dotnet35sp1()
 {
-echo "Debug: load dotnet35sp1"    
-
     w_package_unsupported_win64
 
     case "$W_PLATFORM" in
@@ -6880,12 +6846,6 @@ load_dotnet40()
         *) w_warn "dotnet40 does not yet fully work or install on wine.  Caveat emptor." ;;
     esac
 
-    if [ "$W_ARCH" = "win64" ]; then
-        if w_workaround_wine_bug 42701; then
-            "On 64-bit, you'll run into https://bugs.winehq.org/show_bug.cgi?id=42701 (missing api-ms-win-core-winrt-roparameterizediid-l1-1-0.dll.RoGetParameterizedTypeInstanceIID"
-        fi
-    fi
-
     # https://www.microsoft.com/en-us/download/details.aspx?id=17718
     w_download https://download.microsoft.com/download/9/5/A/95A9616B-7A37-4AF6-BC36-D6EA96C8DAAE/dotNetFx40_Full_x86_x64.exe 65e064258f2e418816b304f646ff9e87af101e4c9552ab064bb74d281c38659f
 
@@ -6932,17 +6892,14 @@ load_dotnet45()
     # https://www.microsoft.com/en-us/download/details.aspx?id=17718
     w_download https://download.microsoft.com/download/b/a/4/ba4a7e71-2906-4b2d-a0e1-80cf16844f5f/dotnetfx45_full_x86_x64.exe a04d40e217b97326d46117d961ec4eda455e087b90637cb33dd6cc4a2c228d83
 
-#    w_call remove_mono
+    w_call remove_mono
 
     # See https://appdb.winehq.org/objectManager.php?sClass=version&iId=25478 for Focht's recipe
 
     # Seems unneeded in wine-2.0
-    w_call dotnet35
-echo "MY: dotnet40"
-
+    # w_call dotnet35
     w_call dotnet40
-echo "MY: win7 - ignore"    
-    # w_set_winver win7
+    w_set_winver win7
 
     w_try_cd "$W_CACHE/$W_PACKAGE"
 
@@ -6959,8 +6916,7 @@ echo "MY: win7 - ignore"
     w_override_dlls native mscoree
 
     w_warn "Setting Windows version to 2003, otherwise applications using .NET 4.5 will subtly fail"
-    echo "Debug: setting Windows to win2k3.."
-    # w_set_winver win2k3
+    w_set_winver win2k3
 }
 
 verify_dotnet45()
@@ -7038,10 +6994,10 @@ load_dotnet46()
     # https://support.microsoft.com/kb/3045560
     w_download https://download.microsoft.com/download/C/3/A/C3A5200B-D33C-47E9-9D70-2F7C65DAAD94/NDP46-KB3045557-x86-x64-AllOS-ENU.exe b21d33135e67e3486b154b11f7961d8e1cfd7a603267fb60febb4a6feab5cf87
 
-    # w_call remove_mono
+    w_call remove_mono
 
     w_call dotnet45
-    # w_set_winver win7
+    w_set_winver win7
 
     w_try_cd "$W_CACHE/$W_PACKAGE"
 
@@ -7088,10 +7044,10 @@ load_dotnet461()
     # https://www.microsoft.com/en-us/download/details.aspx?id=49982
     w_download https://download.microsoft.com/download/E/4/1/E4173890-A24A-4936-9FC9-AF930FE3FA40/NDP461-KB3102436-x86-x64-AllOS-ENU.exe beaa901e07347d056efe04e8961d5546c7518fab9246892178505a7ba631c301
 
-    # w_call remove_mono
+    w_call remove_mono
 
     w_call dotnet46
-    # w_set_winver win7
+    w_set_winver win7
 
     w_try_cd "$W_CACHE/$W_PACKAGE"
 
@@ -8668,20 +8624,20 @@ w_metadata remove_mono settings \
 
 load_remove_mono()
 {
-    mono_uuid="$("${WINE_ARCH}" uninstaller --list | grep Mono | cut -f1 -d\|)"
+    mono_uuid="$($WINE uninstaller --list | grep Mono | cut -f1 -d\|)"
     if test "$mono_uuid"; then
-         "${WINE_ARCH}" uninstaller --remove "$mono_uuid"
+         "$WINE" uninstaller --remove "$mono_uuid"
     else
         w_warn "Mono does not appear to be installed."
     fi
 
     # FIXME: verify on pristine Windows XP:
     if w_workaround_wine_bug 34803; then
-        "${WINE_ARCH}" reg delete 'HKLM\Software\Microsoft\.NETFramework\v2.0.50727\SBSDisabled' /f
+        "$WINE" reg delete 'HKLM\Software\Microsoft\.NETFramework\v2.0.50727\SBSDisabled' /f
     fi
 
-    "${WINE_ARCH}" reg delete "HKLM\\Software\\Microsoft\\NET Framework Setup\\NDP\\v3.5" /f || true
-    "${WINE_ARCH}" reg delete "HKLM\Software\Microsoft\NET Framework Setup\NDP\v4" /f || true
+    "$WINE" reg delete "HKLM\\Software\\Microsoft\\NET Framework Setup\\NDP\\v3.5" /f || true
+    "$WINE" reg delete "HKLM\Software\Microsoft\NET Framework Setup\NDP\v4" /f || true
 
     w_try rm -f "$W_WINDIR_UNIX/system32/mscoree.dll"
 }
@@ -10767,7 +10723,7 @@ load_ev3()
         w_call vcrun2005
     fi
 
-    if w_workaround_wine_bug 40193 "Installing IE8 is built-in Gecko is not sufficient"; then
+    if w_workaround_wine_bug 40193 "Installing IE8 as built-in Gecko is not sufficient"; then
         w_call ie8
     fi
 
@@ -10949,7 +10905,7 @@ load_ie6()
 {
     w_package_unsupported_win64
 
-    w_download http://download.oldapps.com/Internet_Explorer/ie60.exe e34e0557d939e7e83185f5354403df99c92a3f3ff80f5ee0c75f6843eaa6efb2
+    w_download http://cdn.browserarchive.org/ie/win32/6.0/ie60.exe e34e0557d939e7e83185f5354403df99c92a3f3ff80f5ee0c75f6843eaa6efb2
 
     w_try_cd "$W_TMP"
     "$WINE" "$W_CACHE/$W_PACKAGE/$file1"
@@ -11775,7 +11731,7 @@ load_safari()
     fi
 
     w_try_cd "$W_CACHE/$W_PACKAGE"
-    w_try "$WINE_MULTI" SafariSetup.exe $W_UNATTENDED_SLASH_QN
+    w_try "$WINE" SafariSetup.exe $W_UNATTENDED_SLASH_QN
 }
 
 #----------------------------------------------------------------

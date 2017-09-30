@@ -22,10 +22,12 @@ SOURCES = Makefile src tests
 
 version=$(shell grep '^WINETRICKS_VERSION' < src/winetricks | sed 's/.*=//')
 
-PREFIX = /usr
+# brew prefix:
+PREFIX = /usr/local
 
 all:
 	@ echo "Nothing to compile. Use: check, clean, cleanup, dist, install"
+	@ echo "for wine Windows7 dotnet40/45 please download dotNetFx40_Full_x86_x64.exe"
 
 # Editor backup files etc.
 clean:

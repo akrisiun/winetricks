@@ -1,3 +1,35 @@
+# Usage: run favorite shell commander or shell 
+```
+wine c:/bin/totalcmd/totalcmd.exe
+wine cmd
+```
+
+# OSX registry set windows7/windowsxp problem
+
+Darwin Kernel Version 16.7.0: Thu Jun 15 17:36:27 PDT 2017; root:xnu-3789.70.16~2/RELEASE_X86_64 x86_64  
+```
+sudo make install
+
+/usr/local/bin/winetricks settings fontsmooth=rgb
+dotNetFx40_Full_x86_x64.exe
+```
+
+Fonts setting rbg recommended for macOS
+
+You can manually install winetricks:
+```
+export WINEARCH=win32
+export WINEPREFIX=~/.wine/wine32
+
+wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
+sudo cp ./winetricks /usr/local/bin/winetricks
+chmod +x /usr/local/bin/winetricks
+
+env | grep WINE
+WINEARCH=win32
+WINEPREFIX=/Users/andriusk/.wine/wine32
+```
+
 # Winetricks
 Homepage of Winetricks, previously hosted at <https://code.google.com/p/winetricks>.
 
@@ -21,14 +53,6 @@ If available and up to date, you should use the ```winetricks``` package, availa
 * Homebrew (OSX): http://brewformulas.org/Winetricks
 * MacPorts (OSX): https://www.macports.org/ports.php?by=name&substr=winetricks
 * Ubuntu: https://packages.ubuntu.com/search?keywords=winetricks Note: Ubuntu LTS versions are years out of date, do a manual install instead.
-
-If it's not available, outdated (e.g., Ubuntu LTSs), or you want the bleeding edge version, you can manually install winetricks:
-```
-wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
-chmod +x winetricks
-sudo mv winetricks /usr/local/bin
-```
-or if you don't have wget, you can use curl:
 
 ```
 curl -O https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
